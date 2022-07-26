@@ -1,3 +1,6 @@
+*.png
+*.txt
+
 # macOS desktop services
 .DS_Store
 

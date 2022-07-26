@@ -397,6 +397,7 @@ def plot_loss_accuracy_over_epochs(
         train_acc (List[float]): Training accuracies over epochs
         val_loss (List[float]): Validation losses over epochs
         val_acc (List[float]): Validation accuracies over epochs
+        fname (str): Png file name to save the plot
     """
     fig, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
 
