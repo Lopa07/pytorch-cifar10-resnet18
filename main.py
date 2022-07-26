@@ -305,7 +305,7 @@ def train_epoch(
     train_loss /= len(train_loader)
     train_acc = 100 * correct / total
 
-    logger.info(f'Loss: {train_loss} | Acc: {train_acc}%%, ({correct}/{total})')
+    logger.info(f'Loss: {train_loss} | Acc: {train_acc}%, ({correct}/{total})')
     return train_loss, train_acc
 
 
@@ -360,12 +360,12 @@ def val_epoch(
     val_loss /= len(val_loader)
     val_acc = 100 * correct / total
 
-    logger.info(f'Loss: {val_loss} | Acc: {val_acc}%%, ({correct}/{total})')
+    logger.info(f'Loss: {val_loss} | Acc: {val_acc}%, ({correct}/{total})')
 
     # Save checkpoint
     if val_acc >= best_acc:
         logger.info(f'Saving checkpoint from epoch {epoch}.')
-        logger.info(f'Best accuracy: was {best_acc}%%, now: {val_acc}%%.')
+        logger.info(f'Best accuracy: was {best_acc}%, now: {val_acc}%.')
 
         state = {
             'net': net.state_dict(),
