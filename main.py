@@ -182,9 +182,9 @@ def resume_training(net: Any, resume: bool) -> Tuple[Any, float, int]:
             checkpoint = torch.load('checkpoint/ckpt.pth')
             net.load_state_dict(checkpoint['net'])
             best_acc = checkpoint['acc']
-            start_epoch = checkpoint['epoch']
+            start_epoch = checkpoint['epoch'] + 1
             logger.info(
-                f'Resuming model from checkpoint of epoch {start_epoch}.')
+                f'Resuming training from epoch {start_epoch - 1} checkpoint.')
 
         except FileNotFoundError:
             logger.error('Checkpoint path is not present!')
