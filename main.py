@@ -417,7 +417,7 @@ def plot_loss_accuracy_over_epochs(
         lines, labels, loc='upper right', bbox_to_anchor=(0.7, 0.45, 0.5, 0.5))
 
     fig.tight_layout()
-    plt.savefig(fname)
+    plt.savefig(fname, bbox_inches='tight')
 
 
 if __name__ == '__main__':
