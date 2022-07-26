@@ -5,7 +5,7 @@
 import argparse
 import logging
 import os
-from typing import Any, Tuple
+from typing import Any, List, Tuple
 
 import matplotlib.pyplot as plt
 import torch
@@ -134,49 +134,28 @@ def main(
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
-    # Classify
-    epochs = []
-    train_loss = []
-    train_acc = []
-    val_loss = []
-    val_acc = []
-
-    for epoch in range(start_epoch, start_epoch + num_epochs):
-        epochs.append(epoch)
-
-        # Training
-        loss, acc = train_epoch(
-            epoch, net, train_loader, device, optimizer, criterion)
-        train_loss.append(loss)
-        train_acc.append(acc)
-
-        # Validation
-        loss, acc, best_acc = val_epoch(
-            epoch, net, val_loader, device, criterion, best_acc)
-        val_loss.append(loss)
-        val_acc.append(acc)
-
-        scheduler.step()
+    # Train
+    epochs, train_loss, train_acc, val_loss, val_acc = train(
+        start_epoch,
+        num_epochs, net,
+        train_loader,
+        val_loader,
+        device,
+        optimizer,
+        criterion,
+        best_acc,
+        scheduler,
+    )
 
     # Plot loss and accuracy over epochs
-    fig, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
-
-    ax0.plot(epochs, train_loss, label='Train')
-    ax0.plot(epochs, val_loss, label='Validation')
-    ax0.grid(True)
-    ax0.set_ylabel('Loss')
-
-    ax1.plot(epochs, train_acc, label='Train')
-    ax1.plot(epochs, val_acc, label='Validation')
-    ax1.grid(True)
-    ax1.set_xlabel('Epoch')
-    ax1.set_ylabel('Accuracy')
-
-    lines, labels = ax0.get_legend_handles_labels()
-    fig.legend(lines, labels, loc='upper right', bbox_to_anchor=(0.7, 0.45, 0.5, 0.5))
-
-    fig.tight_layout()
-    plt.savefig('classify_cifar10_resnet18.png')
+    plot_loss_accuracy_over_epochs(
+        epochs,
+        train_loss,
+        train_acc,
+        val_loss,
+        val_acc,
+        fname='classify_cifar10_resnet18',
+    )
 
 
 def resume_training(net: Any, resume: bool) -> Tuple[Any, float, int]:
@@ -212,6 +191,65 @@ def resume_training(net: Any, resume: bool) -> Tuple[Any, float, int]:
     return net, best_acc, start_epoch
 
 
+def train(
+    start_epoch: int,
+    num_epochs: int,
+    net: Any,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    device: str,
+    optimizer: Any,
+    criterion: Any,
+    best_acc: float,
+    scheduler: Any,
+) -> Tuple[List[int], List[float], List[float], List[float], List[float]]:
+    """Train model.
+
+    Args:
+        start_epoch (int): Starting epoch
+        num_epochs (int): Number of epochs
+        net (Any): Model
+        train_loader (DataLoader): Training dataloader
+        val_loader (DataLoader): Validation dataloader
+        device (str): Device being used to train: 'gpu' or 'cpu'
+        optimizer (Any): Optimizer. Ex. SGD
+        criterion (Any): Loss function to optimize. Ex. CrossEntropyLoss
+        best_acc (float): Initial best accuray
+        scheduler (Any): Learning rate scheduler for optimizer
+
+    Returns:
+        List[int]: Training epochs, from start_epoch to start_epoch + num_epochs
+        List[float]: Training losses over epochs
+        List[float]: Training accuracies over epochs
+        List[float]: Validation losses over epochs
+        List[float]: Validation accuracies over epochs
+    """
+    epochs = []
+    train_loss = []
+    train_acc = []
+    val_loss = []
+    val_acc = []
+
+    for epoch in range(start_epoch, start_epoch + num_epochs):
+        epochs.append(epoch)
+
+        # Training
+        loss, acc = train_epoch(
+            epoch, net, train_loader, device, optimizer, criterion)
+        train_loss.append(loss)
+        train_acc.append(acc)
+
+        # Validation
+        loss, acc, best_acc = val_epoch(
+            epoch, net, val_loader, device, criterion, best_acc)
+        val_loss.append(loss)
+        val_acc.append(acc)
+
+        scheduler.step()
+
+    return epochs, train_loss, train_acc, val_loss, val_acc
+
+
 def train_epoch(
     epoch: int,
     net: Any,
@@ -220,7 +258,7 @@ def train_epoch(
     optimizer: Any,
     criterion: Any,
 ) -> Tuple[float, float]:
-    """Training.
+    """Train this epoch.
 
     Args:
         epoch (int): Epoch index
@@ -279,7 +317,7 @@ def val_epoch(
     criterion: Any,
     best_acc: float,
 ) -> Tuple[float, float, float]:
-    """Validation.
+    """Validate this epoch.
 
     Args:
         epoch (int): Epoch index
@@ -327,7 +365,7 @@ def val_epoch(
     # Save checkpoint
     if val_acc >= best_acc:
         logger.info(f'Saving checkpoint from epoch {epoch}.')
-        logger.info(f'Best accuracy: was {best_acc}, now: {val_acc}.')
+        logger.info(f'Best accuracy: was {best_acc}%%, now: {val_acc}%%.')
 
         state = {
             'net': net.state_dict(),
@@ -338,8 +376,47 @@ def val_epoch(
             os.mkdir('checkpoint')
         torch.save(state, 'checkpoint/ckpt.pth')
         best_acc = val_acc
-    
+
     return val_loss, val_acc, best_acc
+
+
+def plot_loss_accuracy_over_epochs(
+    epochs: List[int],
+    train_loss: List[float],
+    train_acc: List[float],
+    val_loss: List[float],
+    val_acc: List[float],
+    fname: str,
+):
+    """Plot training and validation loss and accuracy over epochs.
+
+    Args:
+        epochs (List[int]): Training epochs, from start_epoch to start_epoch + 
+                            num_epochs
+        train_loss (List[float]): Training losses over epochs
+        train_acc (List[float]): Training accuracies over epochs
+        val_loss (List[float]): Validation losses over epochs
+        val_acc (List[float]): Validation accuracies over epochs
+    """
+    fig, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
+
+    ax0.plot(epochs, train_loss, label='Train')
+    ax0.plot(epochs, val_loss, label='Validation')
+    ax0.grid(True)
+    ax0.set_ylabel('Loss')
+
+    ax1.plot(epochs, train_acc, label='Train')
+    ax1.plot(epochs, val_acc, label='Validation')
+    ax1.grid(True)
+    ax1.set_xlabel('Epoch')
+    ax1.set_ylabel('Accuracy')
+
+    lines, labels = ax0.get_legend_handles_labels()
+    fig.legend(
+        lines, labels, loc='upper right', bbox_to_anchor=(0.7, 0.45, 0.5, 0.5))
+
+    fig.tight_layout()
+    plt.savefig(fname)
 
 
 if __name__ == '__main__':
