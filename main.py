@@ -12,7 +12,6 @@ import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
-from utils import progress_bar
 
 from datasets import CIFAR10
 from models import ResNet18
@@ -214,13 +213,6 @@ def train(
         _, predicted = outputs.max(1)
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
-        
-        progress_bar(
-            batch_idx, 
-            len(train_loader), 
-            f'Loss: {train_loss / (batch_idx + 1)} | ' + 
-                f'Acc: {100 * correct / total}%% ({correct}/{total})',
-        )
 
     logger.info(
         f'Training epoch: {epoch} | ' + 
@@ -267,13 +259,6 @@ def val(
             _, predicted = outputs.max(1)
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
-
-            progress_bar(
-                batch_idx, 
-                len(val_loader), 
-                f'Loss: {val_loss / (batch_idx + 1)} | ' + 
-                    f'Acc: {100 * correct / total}%% ({correct}/{total})',
-            )
 
     logger.info(
         f'Validation epoch: {epoch} | ' + 
