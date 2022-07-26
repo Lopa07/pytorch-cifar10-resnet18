@@ -7,6 +7,7 @@ import logging
 import os
 from typing import Any, Tuple
 
+import matplotlib.pyplot as plt
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
@@ -156,6 +157,26 @@ def main(
         val_acc.append(acc)
 
         scheduler.step()
+
+    # Plot loss and accuracy over epochs
+    fig, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
+
+    ax0.plot(epochs, train_loss, label='Train')
+    ax0.plot(epochs, val_loss, label='Validation')
+    ax0.grid(True)
+    ax0.set_ylabel('Loss')
+
+    ax1.plot(epochs, train_acc, label='Train')
+    ax1.plot(epochs, val_acc, label='Validation')
+    ax1.grid(True)
+    ax1.set_xlabel('Epoch')
+    ax1.set_ylabel('Accuracy')
+
+    lines, labels = ax0.get_legend_handles_labels()
+    fig.legend(lines, labels, loc='upper right', bbox_to_anchor=(0.7, 0.45, 0.5, 0.5))
+
+    fig.tight_layout()
+    plt.savefig('classify_cifar10_resnet18.png')
 
 
 def resume_training(net: Any, resume: bool) -> Tuple[Any, float, int]:
