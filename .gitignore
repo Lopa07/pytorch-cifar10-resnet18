@@ -1,0 +1,5 @@
+# macOS desktop services
+.DS_Store
+
+# data
+data/
