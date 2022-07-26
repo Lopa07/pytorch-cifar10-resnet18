@@ -134,9 +134,24 @@ def main(
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
     # Classify
+    train_loss = []
+    train_acc = []
+    val_loss = []
+    val_acc = []
+
     for epoch in range(start_epoch, start_epoch + num_epochs):
-        train(epoch, net, train_loader, device, optimizer, criterion)
-        val(epoch, net, val_loader, device, criterion, best_acc)
+        # Training
+        loss, acc = train_epoch(
+            epoch, net, train_loader, device, optimizer, criterion)
+        train_loss.append(loss)
+        train_acc.append(acc)
+
+        # Validation
+        loss, acc = val_epoch(
+            epoch, net, val_loader, device, criterion, best_acc)
+        val_loss.append(loss)
+        val_acc.append(acc)
+
         scheduler.step()
 
 
@@ -173,14 +188,14 @@ def resume_training(net: Any, resume: bool) -> Tuple[Any, float, int]:
     return net, best_acc, start_epoch
 
 
-def train(
+def train_epoch(
     epoch: int,
     net: Any,
     train_loader: DataLoader,
     device: str,
     optimizer: Any,
     criterion: Any,
-):
+) -> Tuple[float, float]:
     """Training.
 
     Args:
@@ -190,6 +205,10 @@ def train(
         device (str): Device being used to train: 'gpu' or 'cpu'
         optimizer (Any): Optimizer. Ex. SGD
         criterion (Any): Loss function to optimize. Ex. CrossEntropyLoss
+
+    Returns:
+        float: Training loss this epoch
+        float: Training accuracy this epoch
     """
 
     logger.info(f'Training epoch: {epoch}')
@@ -201,34 +220,41 @@ def train(
     total = 0
 
     # Train
-    for batch_idx, (inputs, targets) in enumerate(train_loader):
-        inputs, targets = inputs.to(device), targets.to(device)
-        optimizer.zero_grad()
+    for _, (inputs, targets) in enumerate(train_loader):
+        inputs = inputs.to(device)
+        targets = targets.to(device)
+
+        # Forward pass
         outputs = net(inputs)
         loss = criterion(outputs, targets)
+
+        # Backward and optimize
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
+        # Batch train loss and accuracy
         train_loss += loss.item()
         _, predicted = outputs.max(1)
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
 
-    logger.info(
-        f'Training epoch: {epoch} | ' + 
-        f'Loss: {train_loss / (batch_idx + 1)} | ' + 
-        f'Acc: {100 * correct / total}%%, ({correct}/{total})'
-    )
+    # Training loss and accuracy
+    train_loss /= len(train_loader)
+    train_acc = 100 * correct / total
+
+    logger.info(f'Loss: {train_loss} | Acc: {train_acc}%%, ({correct}/{total})')
+    return train_loss, train_acc
 
 
-def val(
+def val_epoch(
     epoch: int,
     net: Any,
     val_loader: DataLoader,
     device: str,
     criterion: Any,
     best_acc: float,
-):
+) -> Tuple[float, float]:
     """Validation.
 
     Args:
@@ -238,6 +264,10 @@ def val(
         device (str): Device being used to train: 'gpu' or 'cpu'
         optimizer (Any): Optimizer. Ex. SGD
         criterion (Any): Loss function to optimize. Ex. CrossEntropyLoss
+
+    Returns:
+        float: Validation loss this epoch
+        float: Validation accuracy this epoch
     """
 
     logger.info(f'Validation epoch: {epoch}')
@@ -250,37 +280,42 @@ def val(
 
     # Validation
     with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(val_loader):
-            inputs, targets = inputs.to(device), targets.to(device)
+        for _, (inputs, targets) in enumerate(val_loader):
+            inputs = inputs.to(device)
+            targets = targets.to(device)
+
+            # Forward pass
             outputs = net(inputs)
             loss = criterion(outputs, targets)
 
+            # Batch validation loss and accuracy
             val_loss += loss.item()
             _, predicted = outputs.max(1)
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
 
-    logger.info(
-        f'Validation epoch: {epoch} | ' + 
-        f'Loss: {val_loss / (batch_idx + 1)} | ' + 
-        f'Acc: {100 * correct / total}%%, ({correct}/{total})'
-    )
+    # Validation loss and accuracy
+    val_loss /= len(val_loader)
+    val_acc = 100 * correct / total
+
+    logger.info(f'Loss: {val_loss} | Acc: {val_acc}%%, ({correct}/{total})')
 
     # Save checkpoint
-    acc = 100 * correct / total
-    if acc >= best_acc:
+    if val_acc >= best_acc:
         logger.info(f'Saving checkpoint from epoch {epoch}.')
-        logger.info(f'Best accuracy: was {best_acc}, now: {acc}.')
+        logger.info(f'Best accuracy: was {best_acc}, now: {val_acc}.')
 
         state = {
             'net': net.state_dict(),
-            'acc': acc,
+            'acc': val_acc,
             'epoch': epoch,
         }
         if not os.path.isdir('checkpoint'):
             os.mkdir('checkpoint')
         torch.save(state, 'checkpoint/ckpt.pth')
-        best_acc = acc
+        best_acc = val_acc
+    
+    return val_loss, val_acc
 
 
 if __name__ == '__main__':
