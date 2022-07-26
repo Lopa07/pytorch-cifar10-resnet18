@@ -43,8 +43,8 @@ def get_args() -> argparse.Namespace:
                             ResNet18 model in PyTorch:
             learning_rate (float): Learning rate. Default 0.1
             num_epochs (int): Number of epochs. Default 200
-            batch_size_train (int): Training batch size
-            batch_size_val (int): Validation batch size
+            batch_size_train (int): Training batch size. Default 128
+            batch_size_val (int): Validation batch size. Default 100
             resume (bool): Resume training from checkpoint. Default False
     """
 
@@ -134,12 +134,15 @@ def main(
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
     # Classify
+    epochs = []
     train_loss = []
     train_acc = []
     val_loss = []
     val_acc = []
 
     for epoch in range(start_epoch, start_epoch + num_epochs):
+        epochs.append(epoch)
+
         # Training
         loss, acc = train_epoch(
             epoch, net, train_loader, device, optimizer, criterion)
@@ -147,7 +150,7 @@ def main(
         train_acc.append(acc)
 
         # Validation
-        loss, acc = val_epoch(
+        loss, acc, best_acc = val_epoch(
             epoch, net, val_loader, device, criterion, best_acc)
         val_loss.append(loss)
         val_acc.append(acc)
@@ -254,7 +257,7 @@ def val_epoch(
     device: str,
     criterion: Any,
     best_acc: float,
-) -> Tuple[float, float]:
+) -> Tuple[float, float, float]:
     """Validation.
 
     Args:
@@ -315,7 +318,7 @@ def val_epoch(
         torch.save(state, 'checkpoint/ckpt.pth')
         best_acc = val_acc
     
-    return val_loss, val_acc
+    return val_loss, val_acc, best_acc
 
 
 if __name__ == '__main__':
