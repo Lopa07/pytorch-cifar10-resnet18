@@ -47,6 +47,7 @@ def get_args() -> argparse.Namespace:
             batch_size_train (int): Training batch size. Default 128
             batch_size_val (int): Validation batch size. Default 100
             resume (bool): Resume training from checkpoint. Default False
+            seed (int): Random seed. Default None
     """
 
     parser = argparse.ArgumentParser(
@@ -86,6 +87,13 @@ def get_args() -> argparse.Namespace:
         action='store_true',
         help='Resume training from checkpoint',
     )
+    parser.add_argument(
+        '-s',
+        '--seed',
+        type=int,
+        default=None,
+        help='Random seed',
+    )
     return parser.parse_args()
 
 
@@ -95,6 +103,7 @@ def main(
     batch_size_train: int,
     batch_size_val: int,
     resume: bool,
+    seed: int,
 ) -> None:
     """Classify CIFAR10 dataset with ResNet18 model in PyTorch.
 
@@ -104,11 +113,15 @@ def main(
         batch_size_train (int): Training batch size
         batch_size_val (int): Validation batch size
         resume (bool): Resume training from checkpoint
+        seed (int): Random seed
     """
 
     # Device
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     logger.info(f'Device: {device}')
+
+    # Set random seed
+    set_seed(seed)
 
     # Dataset
     train_loader, val_loader = CIFAR10(batch_size_train, batch_size_val)
@@ -156,6 +169,19 @@ def main(
         val_acc,
         fname='classify_cifar10_resnet18',
     )
+
+
+def set_seed(seed=None):
+    if seed is not None:
+        torch.manual_seed(seed)
+        torch.backends.cudnn.deterministic = True
+        logger.warning(
+            'Training with manual random seed. '
+            'This will turn on the CUDNN deterministic setting, '
+            'which can slow down your training considerably! '
+            'This may result in unexpected behavior when restarting from '
+            'checkpoints.'
+        )
 
 
 def resume_training(net: Any, resume: bool) -> Tuple[Any, float, int]:
