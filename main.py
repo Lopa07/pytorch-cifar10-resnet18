@@ -15,8 +15,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
 
-from datasets import CIFAR10
-from models import ResNet18
+from datazoo import *
+from modelzoo import *
 
 
 def get_args() -> argparse.Namespace:
