@@ -252,18 +252,20 @@ def resume_training(
     # If resuming training
     if resume:
         # Load checkpoint
+        checkpoint_path = os.path.join(checkpoint_dir, 'ckpt.pth')
         try:
-            checkpoint = torch.load(os.path.join(checkpoint_dir, 'ckpt.pth'))
+            checkpoint = torch.load(checkpoint_path)
             net.load_state_dict(checkpoint['net'])
             best_acc = checkpoint['acc']
             start_epoch = checkpoint['epoch'] + 1
             logger.info(
-                f'Resuming training from epoch {start_epoch - 1} checkpoint '
-                f'in {checkpoint_dir}.'
+                f'Resuming training from epoch {start_epoch - 1} checkpoint in '
+                f'{checkpoint_dir}.'
             )
 
         except FileNotFoundError:
-            logger.error('Checkpoint path is not present!')
+            logger.error(f"Checkpoint path '{checkpoint_path}' is not present!")
+            exit()
 
     return net, best_acc, start_epoch
 
