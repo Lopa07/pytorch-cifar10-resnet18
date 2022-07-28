@@ -1,4 +1,9 @@
-"""Classify CIFAR10 dataset with ResNet18 model in PyTorch.
+"""Train <model> with <dataset> in PyTorch.
+<model>:
+    - ResNet18
+
+<dataset>:
+    - CIFAR10
 """
 
 
@@ -15,17 +20,18 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
 
-from datazoo import *
-from modelzoo import *
-
 
 def get_args() -> argparse.Namespace:
     """This function parses the command-line arguments and returns necessary
     parameter values.
 
     Returns:
-        argparse.Namespace: Required variables to classify CIFAR10 dataset with
-                            ResNet18 model in PyTorch:
+        argparse.Namespace: Required variables to train <model> with <dataset>
+                            in PyTorch:
+            model (str): Model to train on. choices are 'ResNet18'. Default
+                         'ResNet18'
+            dataset (str): Dataset name to classify. choices are 'CIFAR10'.
+                           Default 'CIFAR10'
             learning_rate (float): Learning rate. Default 0.1
             num_epochs (int): Number of epochs. Default 200
             batch_size_train (int): Training batch size. Default 128
@@ -35,8 +41,20 @@ def get_args() -> argparse.Namespace:
             seed (int): Random seed. Default None
     """
 
-    parser = argparse.ArgumentParser(
-        'Classify CIFAR10 dataset with ResNet18 model in PyTorch.'
+    parser = argparse.ArgumentParser('Train <model> with <dataset> in PyTorch.')
+    parser.add_argument(
+        '-m',
+        '--model',
+        choices={'ResNet18'},
+        default='ResNet18',
+        help='Model to train on',
+    )
+    parser.add_argument(
+        '-d',
+        '--dataset',
+        choices={'CIFAR10'},
+        default='CIFAR10',
+        help='Dataset to classify',
     )
     parser.add_argument(
         '-lr',
@@ -90,6 +108,8 @@ def get_args() -> argparse.Namespace:
 
 
 def main(
+    model: str,
+    dataset: str,
     learning_rate: float,
     num_epochs: int,
     batch_size_train: int,
@@ -98,9 +118,13 @@ def main(
     checkpoint_dir: str,
     seed: int,
 ) -> None:
-    """Classify CIFAR10 dataset with ResNet18 model in PyTorch.
+    """Train <model> with <dataset> in PyTorch.
 
     Args:
+        model (str): Model to train on. choices are 'ResNet18'. Default
+                     'ResNet18'
+        dataset (str): Dataset name to classify. choices are 'CIFAR10'. Default
+                       'CIFAR10'
         learning_rate (float): Learning rate
         num_epochs (int): Number of epochs
         batch_size_train (int): Training batch size
@@ -113,7 +137,7 @@ def main(
     # Logger
     global logger
     global log_dir
-    logger, log_dir = initialize_logger()
+    logger, log_dir = initialize_logger(model, dataset)
 
     # Device
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -122,17 +146,20 @@ def main(
     # Set random seed
     set_seed(seed)
 
-    # Dataset
-    train_loader, val_loader = CIFAR10(batch_size_train, batch_size_val)
-    logger.info('Training and validation datasets are loaded.')
-
     # Model
-    net = ResNet18()
+    module = __import__('modelzoo')
+    net = getattr(module, model)()
     net = net.to(device)
     if device == 'cuda':
         net = torch.nn.DataParallel(net)
         cudnn.benchmark = True
-    logger.info('Model loaded.')
+    logger.info(f'{model} model loaded.')
+
+    # Dataset
+    module = __import__('datazoo')
+    train_loader, val_loader = getattr(module, dataset)(
+        batch_size_train, batch_size_val)
+    logger.info(f'{dataset} training and validation datasets are loaded.')
 
     # Resume training
     net, best_acc, start_epoch = resume_training(net, resume, checkpoint_dir)
@@ -166,11 +193,11 @@ def main(
         train_acc,
         val_loss,
         val_acc,
-        fname='classify_cifar10_resnet18',
+        fname=f'train_{model}_{dataset}',
     )
 
 
-def initialize_logger() -> Tuple[logging.Logger, str]:
+def initialize_logger(model: str, dataset: str) -> Tuple[logging.Logger, str]:
     """Initialize logger.
     """
 
@@ -180,7 +207,7 @@ def initialize_logger() -> Tuple[logging.Logger, str]:
         os.makedirs(log_dir)
 
     # Logger
-    logger = logging.getLogger('Classify CIFAR10 with ResNEt18')
+    logger = logging.getLogger(f'Train {model} with {dataset}')
     logger.setLevel(logging.DEBUG)
     logger.handlers = [
         logging.StreamHandler(),
@@ -380,6 +407,7 @@ def val_epoch(
     Returns:
         float: Validation loss this epoch
         float: Validation accuracy this epoch
+        float: Best accuracy till this epoch
     """
 
     logger.info(f'Validation epoch: {epoch}')
@@ -472,5 +500,5 @@ if __name__ == '__main__':
     # Get command-line arguments
     args = get_args()
 
-    # Classify CIFAR10 dataset with ResNet18 model in PyTorch
+    # train <model> with <dataset> in PyTorch
     main(**args.__dict__)
