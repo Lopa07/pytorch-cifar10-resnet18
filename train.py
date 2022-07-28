@@ -147,8 +147,7 @@ def main(
     set_seed(seed)
 
     # Model
-    module = __import__('modelzoo')
-    net = getattr(module, model)()
+    net = getattr(__import__('modelzoo'), model)()
     net = net.to(device)
     if device == 'cuda':
         net = torch.nn.DataParallel(net)
@@ -156,8 +155,7 @@ def main(
     logger.info(f'{model} model loaded.')
 
     # Dataset
-    module = __import__('datazoo')
-    train_loader, val_loader = getattr(module, dataset)(
+    train_loader, val_loader = getattr(__import__('datazoo'), dataset)(
         batch_size_train, batch_size_val)
     logger.info(f'{dataset} training and validation datasets are loaded.')
 
