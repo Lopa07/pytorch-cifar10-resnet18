@@ -3,6 +3,7 @@
 
 
 import argparse
+import datetime
 import logging
 import os
 from typing import Any, List, Tuple
@@ -18,23 +19,6 @@ from datasets import CIFAR10
 from models import ResNet18
 
 
-def initialize_logger():
-    """Initialize logger.
-    """
-    logger = logging.getLogger('Classify CIFAR10 with ResNEt18')
-    logger.setLevel(logging.DEBUG)
-    logger.handlers = []
-    ch = logging.StreamHandler()
-    logger.addHandler(ch)
-    fh = logging.FileHandler(os.path.join('log.txt'))
-    logger.addHandler(fh)
-
-    return logger
-
-# Logger
-logger = initialize_logger()
-
-
 def get_args() -> argparse.Namespace:
     """This function parses the command-line arguments and returns necessary
     parameter values.
@@ -47,6 +31,7 @@ def get_args() -> argparse.Namespace:
             batch_size_train (int): Training batch size. Default 128
             batch_size_val (int): Validation batch size. Default 100
             resume (bool): Resume training from checkpoint. Default False
+            checkpoint_dir (str): Checkpoint directory. Default ''
             seed (int): Random seed. Default None
     """
 
@@ -88,6 +73,13 @@ def get_args() -> argparse.Namespace:
         help='Resume training from checkpoint',
     )
     parser.add_argument(
+        '-cd',
+        '--checkpoint_dir',
+        type=str,
+        default='',
+        help='Checkpoint directory',
+    )
+    parser.add_argument(
         '-s',
         '--seed',
         type=int,
@@ -103,6 +95,7 @@ def main(
     batch_size_train: int,
     batch_size_val: int,
     resume: bool,
+    checkpoint_dir: str,
     seed: int,
 ) -> None:
     """Classify CIFAR10 dataset with ResNet18 model in PyTorch.
@@ -113,8 +106,14 @@ def main(
         batch_size_train (int): Training batch size
         batch_size_val (int): Validation batch size
         resume (bool): Resume training from checkpoint
+        checkpoint_dir (str): Checkpoint directory. Default None
         seed (int): Random seed
     """
+
+    # Logger
+    global logger
+    global log_dir
+    logger, log_dir = initialize_logger()
 
     # Device
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -136,7 +135,7 @@ def main(
     logger.info('Model loaded.')
 
     # Resume training
-    net, best_acc, start_epoch = resume_training(net, resume)
+    net, best_acc, start_epoch = resume_training(net, resume, checkpoint_dir)
     logger.info(f'Initial best accuracy: {best_acc}')
     logger.info(f'starting epoch: {start_epoch}')
 
@@ -171,6 +170,26 @@ def main(
     )
 
 
+def initialize_logger() -> Tuple[logging.Logger, str]:
+    """Initialize logger.
+    """
+
+    # Log directory
+    log_dir = datetime.datetime.now().strftime('log-%d_%m_%Y-%H:%M:%S')
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    # Logger
+    logger = logging.getLogger('Classify CIFAR10 with ResNEt18')
+    logger.setLevel(logging.DEBUG)
+    logger.handlers = [
+        logging.StreamHandler(),
+        logging.FileHandler(os.path.join(log_dir, 'log.txt')),
+    ]
+
+    return logger, log_dir
+
+
 def set_seed(seed=None):
     if seed is not None:
         torch.manual_seed(seed)
@@ -184,12 +203,14 @@ def set_seed(seed=None):
         )
 
 
-def resume_training(net: Any, resume: bool) -> Tuple[Any, float, int]:
+def resume_training(
+    net: Any, resume: bool, checkpoint_dir: str) -> Tuple[Any, float, int]:
     """Resume training.
 
     Args:
         net (Any): Model to train
         resume (bool): Resume training from checkpoint
+        checkpoint_dir (str): Checkpoint directory. Default None
 
     Returns:
         Any: Checkpoint model
@@ -205,12 +226,14 @@ def resume_training(net: Any, resume: bool) -> Tuple[Any, float, int]:
     if resume:
         # Load checkpoint
         try:
-            checkpoint = torch.load('checkpoint/ckpt.pth')
+            checkpoint = torch.load(os.path.join(checkpoint_dir, 'ckpt.pth'))
             net.load_state_dict(checkpoint['net'])
             best_acc = checkpoint['acc']
             start_epoch = checkpoint['epoch'] + 1
             logger.info(
-                f'Resuming training from epoch {start_epoch - 1} checkpoint.')
+                f'Resuming training from epoch {start_epoch - 1} checkpoint '
+                f'in {checkpoint_dir}.'
+            )
 
         except FileNotFoundError:
             logger.error('Checkpoint path is not present!')
@@ -399,9 +422,7 @@ def val_epoch(
             'acc': val_acc,
             'epoch': epoch,
         }
-        if not os.path.isdir('checkpoint'):
-            os.mkdir('checkpoint')
-        torch.save(state, 'checkpoint/ckpt.pth')
+        torch.save(state, os.path.join(log_dir, 'ckpt.pth'))
         best_acc = val_acc
 
     return val_loss, val_acc, best_acc
@@ -444,7 +465,7 @@ def plot_loss_accuracy_over_epochs(
         lines, labels, loc='upper right', bbox_to_anchor=(0.7, 0.45, 0.5, 0.5))
 
     fig.tight_layout()
-    plt.savefig(fname, bbox_inches='tight')
+    plt.savefig(os.path.join(log_dir, fname), bbox_inches='tight')
 
 
 if __name__ == '__main__':
