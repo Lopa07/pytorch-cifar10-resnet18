@@ -274,7 +274,7 @@ def resume_training(
     model: nn.Module,
     optimizer: optim.Optimizer,
 ) -> Tuple[nn.Module, optim.Optimizer, float, int]:
-    """Resume training.
+    """Resume training from checkpoint.
 
     Args:
         config (Dict): Configuration with required parameters to train <model>
@@ -306,7 +306,7 @@ def resume_training(
     config_checkpoint = Path(checkpoint_dir) / "config.yml"
     config_checkpoint = yaml.safe_load(config_checkpoint.read_text())
 
-    if not compare_basic_configs(config, config_checkpoint):
+    if not compare_configs(config, config_checkpoint):
         logger.error(
             "Different basic configuration from checkpoint. Cannot resume training!"
         )
@@ -334,8 +334,8 @@ def resume_training(
     return model, optimizer, best_acc, start_epoch
 
 
-def compare_basic_configs(config: Dict, config_checkpoint: Dict) -> bool:
-    """Compare basic configurations.
+def compare_configs(config: Dict, config_checkpoint: Dict) -> bool:
+    """Compare configurations.
 
     Args:
         config (Dict): Configuration for this run
