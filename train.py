@@ -102,7 +102,7 @@ def get_args() -> argparse.Namespace:
         '--seed',
         type=int,
         default=None,
-        help='Random seed',
+        help='Random seed for reproducibility',
     )
     return parser.parse_args()
 
@@ -131,7 +131,7 @@ def main(
         batch_size_val (int): Validation batch size
         resume (bool): Resume training from checkpoint
         checkpoint_dir (str): Checkpoint directory. Default None
-        seed (int): Random seed
+        seed (int): Random seed for reproducibility
     """
 
     # Logger
@@ -164,7 +164,8 @@ def main(
     optimizer = optim.SGD(
         net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=5e-4
     )
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=num_epochs)
 
     # Resume training
     net, optimizer, best_acc, start_epoch = resume_training(
@@ -216,7 +217,13 @@ def initialize_logger(model: str, dataset: str) -> Tuple[logging.Logger, str]:
     return logger, log_dir
 
 
-def set_seed(seed=None):
+def set_seed(seed: int = None):
+    """Initiate training with manual random seed for reproducibility.
+
+    Args:
+        seed (int): Random seed for reproducibility
+    """
+
     if seed is not None:
         torch.manual_seed(seed)
         torch.backends.cudnn.deterministic = True
