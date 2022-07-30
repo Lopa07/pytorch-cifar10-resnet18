@@ -167,7 +167,7 @@ def main(
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
     # Resume training
-    net, best_acc, start_epoch = resume_training(
+    net, optimizer, best_acc, start_epoch = resume_training(
         net, optimizer, resume, checkpoint_dir)
     logger.info(f'starting epoch: {start_epoch}')
     logger.info(f'Initial best accuracy: {best_acc}')
@@ -234,7 +234,7 @@ def resume_training(
     optimizer: Any,
     resume: bool,
     checkpoint_dir: str,
-) -> Tuple[Any, float, int]:
+) -> Tuple[Any, Any, float, int]:
     """Resume training.
 
     Args:
@@ -245,6 +245,7 @@ def resume_training(
 
     Returns:
         Any: Checkpoint model
+        Any: Checkpoint optimizer
         float: Initial best accuray
         int: Starting epoch
     """
@@ -274,7 +275,7 @@ def resume_training(
             logger.error(f"Checkpoint path '{checkpoint_path}' is not present!")
             exit()
 
-    return net, best_acc, start_epoch
+    return net, optimizer, best_acc, start_epoch
 
 
 def train(
