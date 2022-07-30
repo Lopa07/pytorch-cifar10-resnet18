@@ -159,17 +159,18 @@ def main(
         batch_size_train, batch_size_val)
     logger.info(f'{dataset} training and validation datasets are loaded.')
 
-    # Resume training
-    net, best_acc, start_epoch = resume_training(net, resume, checkpoint_dir)
-    logger.info(f'Initial best accuracy: {best_acc}')
-    logger.info(f'starting epoch: {start_epoch}')
-
     # Loss, optimizer, and scheduler
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(
         net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=5e-4
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+
+    # Resume training
+    net, best_acc, start_epoch = resume_training(
+        net, optimizer, resume, checkpoint_dir)
+    logger.info(f'starting epoch: {start_epoch}')
+    logger.info(f'Initial best accuracy: {best_acc}')
 
     # Train
     epochs, train_loss, train_acc, val_loss, val_acc = train(
@@ -229,11 +230,16 @@ def set_seed(seed=None):
 
 
 def resume_training(
-    net: Any, resume: bool, checkpoint_dir: str) -> Tuple[Any, float, int]:
+    net: Any,
+    optimizer: Any,
+    resume: bool,
+    checkpoint_dir: str,
+) -> Tuple[Any, float, int]:
     """Resume training.
 
     Args:
         net (Any): Model to train
+        optimizer (Any): Optimizer. Ex. SGD
         resume (bool): Resume training from checkpoint
         checkpoint_dir (str): Checkpoint directory. Default None
 
@@ -253,9 +259,12 @@ def resume_training(
         checkpoint_path = os.path.join(checkpoint_dir, 'ckpt.pth')
         try:
             checkpoint = torch.load(checkpoint_path)
+
             net.load_state_dict(checkpoint['net'])
-            best_acc = checkpoint['acc']
+            optimizer.load_state_dict(checkpoint['optimizer'])
             start_epoch = checkpoint['epoch'] + 1
+            best_acc = checkpoint['acc']
+
             logger.info(
                 f'Resuming training from epoch {start_epoch - 1} checkpoint in '
                 f'{checkpoint_dir}.'
@@ -318,7 +327,7 @@ def train(
 
         # Validation
         loss, acc, best_acc = val_epoch(
-            epoch, net, val_loader, device, criterion, best_acc)
+            epoch, net, val_loader, device, optimizer, criterion, best_acc)
         val_loss.append(loss)
         val_acc.append(acc)
 
@@ -391,6 +400,7 @@ def val_epoch(
     net: Any,
     val_loader: DataLoader,
     device: str,
+    optimizer: Any,
     criterion: Any,
     best_acc: float,
 ) -> Tuple[float, float, float]:
@@ -403,11 +413,12 @@ def val_epoch(
         device (str): Device being used to train: 'gpu' or 'cpu'
         optimizer (Any): Optimizer. Ex. SGD
         criterion (Any): Loss function to optimize. Ex. CrossEntropyLoss
+        best_acc (float): Best accuracy before this epoch
 
     Returns:
         float: Validation loss this epoch
         float: Validation accuracy this epoch
-        float: Best accuracy till this epoch
+        float: Best accuracy after this epoch
     """
 
     logger.info(f'Validation epoch: {epoch}')
@@ -447,8 +458,9 @@ def val_epoch(
 
         state = {
             'net': net.state_dict(),
-            'acc': val_acc,
+            'optimizer': optimizer.state_dict(),
             'epoch': epoch,
+            'acc': val_acc,
         }
         torch.save(state, os.path.join(log_dir, 'ckpt.pth'))
         best_acc = val_acc
