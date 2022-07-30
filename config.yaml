@@ -1,6 +1,0 @@
-"""Required variables to train <model_name> with <dataset_name> in PyTorch.
-"""
-model_name: 'ResNet18'  # Model name to train. choices are 'ResNet18'.
-                        # Choises are: 'ResNet18'. Default 'ResNet18'
-dataset_name: 'CIFAR10' # Dataset name to classify. choices are 'CIFAR10'.
-                        # Choises are: 'CIFAR10'. Default 'CIFAR10'
