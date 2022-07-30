@@ -1,8 +1,8 @@
-"""Train <model> with <dataset> in PyTorch.
-<model>:
+"""Train <model_name> with <dataset_name> in PyTorch.
+<model_name>:
     - ResNet18
 
-<dataset>:
+<dataset_name>:
     - CIFAR10
 """
 
@@ -11,13 +11,16 @@ import argparse
 import datetime
 import logging
 import os
-from typing import Any, List, Tuple
+from typing import Iterator, List, Tuple
 
 import matplotlib.pyplot as plt
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.optim as optim
+from torch.nn.modules.loss import _Loss
+from torch.nn.parameter import Parameter
+from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data.dataloader import DataLoader
 
 
@@ -26,13 +29,21 @@ def get_args() -> argparse.Namespace:
     parameter values.
 
     Returns:
-        argparse.Namespace: Required variables to train <model> with <dataset>
-                            in PyTorch:
-            model (str): Model to train on. choices are 'ResNet18'. Default
-                         'ResNet18'
-            dataset (str): Dataset name to classify. choices are 'CIFAR10'.
-                           Default 'CIFAR10'
-            learning_rate (float): Learning rate. Default 0.1
+        argparse.Namespace: Required variables to train <model_name> with
+                            <dataset_name> in PyTorch:
+            model_name (str): Model name to train. choices are 'ResNet18'.
+                              Choises are: 'ResNet18'. Default 'ResNet18'
+            dataset_name (str): Dataset name to classify. choices are 'CIFAR10'.
+                                Choises are: 'CIFAR10'. Default 'CIFAR10'
+            optimizer_name (str): Optimizer name. Choices are: 'sgd',
+                                  'nesterov_sgd', 'rmsprop', 'adagrad', or
+                                  'adam'. Default: 'sgd'
+            scheduler_name (str): Scheduler name. Choices are: 'constant',
+                                  'step', 'multistep', 'exponential', or
+                                  'cosine'. Default: 'cosine'
+            learning_rate (float): Initial learning rate. Default 0.1
+            momentum (float): Momentum factor. Default 0.9
+            weight_decay (float): Weight decay (L2 penalty). Default 5e-4
             num_epochs (int): Number of epochs. Default 200
             batch_size_train (int): Training batch size. Default 128
             batch_size_val (int): Validation batch size. Default 100
@@ -41,20 +52,39 @@ def get_args() -> argparse.Namespace:
             seed (int): Random seed. Default None
     """
 
-    parser = argparse.ArgumentParser('Train <model> with <dataset> in PyTorch.')
+    parser = argparse.ArgumentParser(
+        'Train <model_name> with <dataset_name> in PyTorch.')
     parser.add_argument(
         '-m',
-        '--model',
-        choices={'ResNet18'},
+        '--model_name',
+        type=str,
         default='ResNet18',
-        help='Model to train on',
+        choices=['ResNet18'],
+        help='Model name to train',
     )
     parser.add_argument(
         '-d',
-        '--dataset',
-        choices={'CIFAR10'},
+        '--dataset_name',
+        type=str,
         default='CIFAR10',
-        help='Dataset to classify',
+        choices=['CIFAR10'],
+        help='Dataset name to classify',
+    )
+    parser.add_argument(
+        '-o',
+        '--optimizer_name',
+        type=str,
+        default='sgd',
+        choices=['sgd', 'nesterov_sgd', 'rmsprop', 'adagrad', 'adam'],
+        help='Optimizer name',
+    )
+    parser.add_argument(
+        '-s',
+        '--scheduler_name',
+        type=str,
+        default='cosine',
+        choices=['constant', 'step', 'multistep', 'exponential', 'cosine'],
+        help='Scheduler name',
     )
     parser.add_argument(
         '-lr',
@@ -62,6 +92,20 @@ def get_args() -> argparse.Namespace:
         type=float,
         default=0.1,
         help='Learning rate',
+    )
+    parser.add_argument(
+        '-mt',
+        '--momentum',
+        type=float,
+        default=0.9,
+        help='Momentum factor',
+    )
+    parser.add_argument(
+        '-wd',
+        '--weight_decay',
+        type=float,
+        default=5e-4,
+        help='Weight decay (L2 penalty)',
     )
     parser.add_argument(
         '-n',
@@ -98,7 +142,7 @@ def get_args() -> argparse.Namespace:
         help='Checkpoint directory',
     )
     parser.add_argument(
-        '-s',
+        '-sd',
         '--seed',
         type=int,
         default=None,
@@ -108,9 +152,13 @@ def get_args() -> argparse.Namespace:
 
 
 def main(
-    model: str,
-    dataset: str,
+    model_name: str,
+    dataset_name: str,
+    optimizer_name: str,
+    scheduler_name: str,
     learning_rate: float,
+    momentum: float,
+    weight_decay: float,
     num_epochs: int,
     batch_size_train: int,
     batch_size_val: int,
@@ -118,14 +166,22 @@ def main(
     checkpoint_dir: str,
     seed: int,
 ) -> None:
-    """Train <model> with <dataset> in PyTorch.
+    """Train <model_name> with <dataset_name> in PyTorch.
 
     Args:
-        model (str): Model to train on. choices are 'ResNet18'. Default
-                     'ResNet18'
-        dataset (str): Dataset name to classify. choices are 'CIFAR10'. Default
-                       'CIFAR10'
-        learning_rate (float): Learning rate
+        model_name (str): Model name to train. choices are 'ResNet18'. Default
+                          'ResNet18'
+        dataset_name (str): Dataset name to classify. choices are 'CIFAR10'.
+                            Default 'CIFAR10'
+        optimizer_name (str): Optimizer name. Choices are: 'sgd',
+                              'nesterov_sgd', 'rmsprop', 'adagrad', or 'adam'.
+                              Default: 'sgd'
+        scheduler_name (str): Scheduler name. Choices are: 'constant', 'step',
+                              'multistep', 'exponential', or 'cosine'. Default:
+                              'cosine'
+        learning_rate (float): Initial learning rate
+        momentum (float): Momentum factor. Default 0.9
+        weight_decay (float): Weight decay (L2 penalty). Default 5e-4
         num_epochs (int): Number of epochs
         batch_size_train (int): Training batch size
         batch_size_val (int): Validation batch size
@@ -137,7 +193,7 @@ def main(
     # Logger
     global logger
     global log_dir
-    logger, log_dir = initialize_logger(model, dataset)
+    logger, log_dir = initialize_logger(model_name, dataset_name)
 
     # Device
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -147,36 +203,39 @@ def main(
     set_seed(seed)
 
     # Model
-    net = getattr(__import__('modelzoo'), model)()
-    net = net.to(device)
+    model = getattr(__import__('modelzoo'), model_name)()
+    model = model.to(device)
     if device == 'cuda':
-        net = torch.nn.DataParallel(net)
+        model = torch.nn.DataParallel(model)
         cudnn.benchmark = True
-    logger.info(f'{model} model loaded.')
+    logger.info(f'{model_name} model loaded.')
 
     # Dataset
-    train_loader, val_loader = getattr(__import__('datazoo'), dataset)(
+    train_loader, val_loader = getattr(__import__('datazoo'), dataset_name)(
         batch_size_train, batch_size_val)
-    logger.info(f'{dataset} training and validation datasets are loaded.')
+    logger.info(f'{dataset_name} training and validation datasets are loaded.')
 
     # Loss, optimizer, and scheduler
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(
-        net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=5e-4
+    optimizer = get_optimizer(
+        optimizer_name,
+        model.parameters(),
+        learning_rate,
+        momentum,
+        weight_decay,
     )
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=num_epochs)
+    scheduler = get_scheduler(scheduler_name, optimizer, num_epochs)
 
     # Resume training
-    net, optimizer, best_acc, start_epoch = resume_training(
-        net, optimizer, resume, checkpoint_dir)
-    logger.info(f'starting epoch: {start_epoch}')
+    model, optimizer, best_acc, start_epoch = resume_training(
+        model, optimizer, resume, checkpoint_dir)
+    logger.info(f'Starting epoch: {start_epoch}')
     logger.info(f'Initial best accuracy: {best_acc}')
 
     # Train
     epochs, train_loss, train_acc, val_loss, val_acc = train(
         start_epoch,
-        num_epochs, net,
+        num_epochs, model,
         train_loader,
         val_loader,
         device,
@@ -193,11 +252,12 @@ def main(
         train_acc,
         val_loss,
         val_acc,
-        fname=f'train_{model}_{dataset}',
+        fname=f'train_{model_name}_{dataset_name}',
     )
 
 
-def initialize_logger(model: str, dataset: str) -> Tuple[logging.Logger, str]:
+def initialize_logger(
+    model_name: str, dataset_name: str) -> Tuple[logging.Logger, str]:
     """Initialize logger.
     """
 
@@ -207,7 +267,7 @@ def initialize_logger(model: str, dataset: str) -> Tuple[logging.Logger, str]:
         os.makedirs(log_dir)
 
     # Logger
-    logger = logging.getLogger(f'Train {model} with {dataset}')
+    logger = logging.getLogger(f'Train {model_name} with {dataset_name}')
     logger.setLevel(logging.DEBUG)
     logger.handlers = [
         logging.StreamHandler(),
@@ -236,23 +296,119 @@ def set_seed(seed: int = None):
         )
 
 
+def get_optimizer(
+    optimizer_name: str,
+    parameters: Iterator[Parameter],
+    learning_rate: float,
+    momentum: float,
+    weight_decay: float,
+) -> optim.Optimizer:
+    """Optimizer.
+
+    Args:
+        optimizer_name (str): Optimizer name. Choices are: 'sgd',
+                              'nesterov_sgd', 'rmsprop', 'adagrad', or 'adam'.
+                              Default: 'sgd'
+        parameters (Iterator[Parameter]): Model parameters
+        learning_rate (float): Initial learning rate
+        momentum (float): Momentum factor
+        weight_decay (float): Weight decay (L2 penalty)
+
+    Returns:
+        optim.Optimizer: Optimizer
+    """
+
+    if optimizer_name == 'sgd':
+        return optim.SGD(
+            parameters,
+            lr=learning_rate,
+            momentum=momentum,
+            weight_decay=weight_decay,
+        )
+
+    if optimizer_name == 'nesterov_sgd':
+        return optim.SGD(
+            parameters,
+            lr=learning_rate,
+            momentum=momentum,
+            weight_decay=weight_decay,
+            nesterov=True,
+        )
+
+    if optimizer_name == 'rmsprop':
+        return optim.RMSprop(
+            parameters,
+            lr=learning_rate,
+            momentum=momentum,
+            weight_decay=weight_decay,
+        )
+
+    if optimizer_name == 'adagrad':
+        return optim.Adagrad(
+            parameters, lr=learning_rate, weight_decay=weight_decay)
+
+    if optimizer_name == 'adam':
+        return optim.Adam(
+            parameters, lr=learning_rate, weight_decay=weight_decay)
+
+
+def get_scheduler(
+    scheduler_name: str,
+    optimizer: optim.Optimizer,
+    num_epochs: int,
+    **kwargs,
+) -> _LRScheduler:
+    """Learning rate scheduler.
+
+    Args:
+        scheduler_name (str): Scheduler name. Choices are: 'constant', 'step',
+                              'multistep', 'exponential', or 'cosine'. Default:
+                              'cosine'
+        optimizer (optim.Optimizer): Optimizer. Ex. SGD
+        num_epochs (int): Number of epochs
+
+    Returns:
+        _LRScheduler: Learning rate scheduler for optimizer
+
+    """
+
+    if scheduler_name == 'constant':
+        return optim.lr_scheduler.StepLR(
+            optimizer, num_epochs, gamma=1, **kwargs)
+
+    if scheduler_name == 'step':
+        return optim.lr_scheduler.StepLR(optimizer, 50, gamma=0.1, **kwargs)
+
+    if scheduler_name == 'multistep':
+        return optim.lr_scheduler.MultiStepLR(
+            optimizer, milestones=[50, 120, 200], gamma=0.1)
+
+    if scheduler_name == 'exponential':
+        return optim.lr_scheduler.ExponentialLR(
+            optimizer, (1e-3) ** (1 / num_epochs), **kwargs)
+
+    if scheduler_name == 'cosine':
+        return optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=num_epochs, eta_min=0, last_epoch=-1)
+
+
 def resume_training(
-    net: Any,
-    optimizer: Any,
+    model: nn.Module,
+    optimizer: optim.Optimizer,
     resume: bool,
     checkpoint_dir: str,
-) -> Tuple[Any, Any, float, int]:
+) -> Tuple[nn.Module, optim.Optimizer, float, int]:
     """Resume training.
 
     Args:
-        net (Any): Model to train
-        optimizer (Any): Optimizer. Ex. SGD
+        model (nn.Module): Model to train
+        optimizer (optim.Optimizer): Optimizer. Ex. SGD
         resume (bool): Resume training from checkpoint
         checkpoint_dir (str): Checkpoint directory. Default None
 
     Returns:
-        Any: Checkpoint model
-        Any: Checkpoint optimizer
+        nn.Module: Checkpoint model
+        optim.Optimizer: Checkpoint optimizer
         float: Initial best accuray
         int: Starting epoch
     """
@@ -268,7 +424,7 @@ def resume_training(
         try:
             checkpoint = torch.load(checkpoint_path)
 
-            net.load_state_dict(checkpoint['net'])
+            model.load_state_dict(checkpoint['model'])
             optimizer.load_state_dict(checkpoint['optimizer'])
             start_epoch = checkpoint['epoch'] + 1
             best_acc = checkpoint['acc']
@@ -282,34 +438,34 @@ def resume_training(
             logger.error(f"Checkpoint path '{checkpoint_path}' is not present!")
             exit()
 
-    return net, optimizer, best_acc, start_epoch
+    return model, optimizer, best_acc, start_epoch
 
 
 def train(
     start_epoch: int,
     num_epochs: int,
-    net: Any,
+    model: nn.Module,
     train_loader: DataLoader,
     val_loader: DataLoader,
     device: str,
-    optimizer: Any,
-    criterion: Any,
+    optimizer: optim.Optimizer,
+    criterion: _Loss,
     best_acc: float,
-    scheduler: Any,
+    scheduler: _LRScheduler,
 ) -> Tuple[List[int], List[float], List[float], List[float], List[float]]:
     """Train model.
 
     Args:
         start_epoch (int): Starting epoch
         num_epochs (int): Number of epochs
-        net (Any): Model
+        model (nn.Module): Model
         train_loader (DataLoader): Training dataloader
         val_loader (DataLoader): Validation dataloader
         device (str): Device being used to train: 'gpu' or 'cpu'
-        optimizer (Any): Optimizer. Ex. SGD
-        criterion (Any): Loss function to optimize. Ex. CrossEntropyLoss
+        optimizer (optim.Optimizer): Optimizer. Ex. SGD
+        criterion (_Loss): Loss function to optimize. Ex. CrossEntropyLoss
         best_acc (float): Initial best accuray
-        scheduler (Any): Learning rate scheduler for optimizer
+        scheduler (_LRScheduler): Learning rate scheduler for optimizer
 
     Returns:
         List[int]: Training epochs, from start_epoch to start_epoch + num_epochs
@@ -329,13 +485,13 @@ def train(
 
         # Training
         loss, acc = train_epoch(
-            epoch, net, train_loader, device, optimizer, criterion)
+            epoch, model, train_loader, device, optimizer, criterion)
         train_loss.append(loss)
         train_acc.append(acc)
 
         # Validation
         loss, acc, best_acc = val_epoch(
-            epoch, net, val_loader, device, optimizer, criterion, best_acc)
+            epoch, model, val_loader, device, optimizer, criterion, best_acc)
         val_loss.append(loss)
         val_acc.append(acc)
 
@@ -346,21 +502,21 @@ def train(
 
 def train_epoch(
     epoch: int,
-    net: Any,
+    model: nn.Module,
     train_loader: DataLoader,
     device: str,
-    optimizer: Any,
-    criterion: Any,
+    optimizer: optim.Optimizer,
+    criterion: _Loss,
 ) -> Tuple[float, float]:
     """Train this epoch.
 
     Args:
         epoch (int): Epoch index
-        net (Any): Model
+        model (nn.Module): Model
         train_loader (DataLoader): Training dataloader
         device (str): Device being used to train: 'gpu' or 'cpu'
-        optimizer (Any): Optimizer. Ex. SGD
-        criterion (Any): Loss function to optimize. Ex. CrossEntropyLoss
+        optimizer (optim.Optimizer): Optimizer. Ex. SGD
+        criterion (_Loss): Loss function to optimize. Ex. CrossEntropyLoss
 
     Returns:
         float: Training loss this epoch
@@ -370,7 +526,7 @@ def train_epoch(
     logger.info(f'Training epoch: {epoch}')
 
     # Initialize
-    net.train()
+    model.train()
     train_loss = 0
     correct = 0
     total = 0
@@ -381,7 +537,7 @@ def train_epoch(
         targets = targets.to(device)
 
         # Forward pass
-        outputs = net(inputs)
+        outputs = model(inputs)
         loss = criterion(outputs, targets)
 
         # Backward and optimize
@@ -405,22 +561,22 @@ def train_epoch(
 
 def val_epoch(
     epoch: int,
-    net: Any,
+    model: nn.Module,
     val_loader: DataLoader,
     device: str,
-    optimizer: Any,
-    criterion: Any,
+    optimizer: optim.Optimizer,
+    criterion: _Loss,
     best_acc: float,
 ) -> Tuple[float, float, float]:
     """Validate this epoch.
 
     Args:
         epoch (int): Epoch index
-        net (Any): Model
+        model (nn.Module): Model
         val_loader (DataLoader): Validation dataloader
         device (str): Device being used to train: 'gpu' or 'cpu'
-        optimizer (Any): Optimizer. Ex. SGD
-        criterion (Any): Loss function to optimize. Ex. CrossEntropyLoss
+        optimizer (optim.Optimizer): Optimizer. Ex. SGD
+        criterion (_Loss): Loss function to optimize. Ex. CrossEntropyLoss
         best_acc (float): Best accuracy before this epoch
 
     Returns:
@@ -432,7 +588,7 @@ def val_epoch(
     logger.info(f'Validation epoch: {epoch}')
 
     # Initialize
-    net.eval()
+    model.eval()
     val_loss = 0
     correct = 0
     total = 0
@@ -444,7 +600,7 @@ def val_epoch(
             targets = targets.to(device)
 
             # Forward pass
-            outputs = net(inputs)
+            outputs = model(inputs)
             loss = criterion(outputs, targets)
 
             # Batch validation loss and accuracy
@@ -465,7 +621,7 @@ def val_epoch(
         logger.info(f'Best accuracy: was {best_acc}%, now: {val_acc}%.')
 
         state = {
-            'net': net.state_dict(),
+            'model': model.state_dict(),
             'optimizer': optimizer.state_dict(),
             'epoch': epoch,
             'acc': val_acc,
