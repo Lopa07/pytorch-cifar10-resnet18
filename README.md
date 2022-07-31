@@ -1,12 +1,11 @@
 # pytorch-model-training
 
-Train <model> with <dataset> in PyTorch.
-<model>:
+Train `model` with `dataset` in PyTorch:
+- `model`:
     - VGG16
     - ResNet18
     - DLA
-
-<dataset>:
+- `dataset`:
     - CIFAR10
 
 ## Getting Started

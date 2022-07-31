@@ -1,10 +1,10 @@
-"""Train <model> with <dataset> in PyTorch.
-<model>:
+"""Train `model` with `dataset` in PyTorch.
+`model`:
     - VGG16
     - ResNet18
     - DLA
 
-<dataset>:
+`dataset`:
     - CIFAR10
 """
 
@@ -41,12 +41,12 @@ def get_args() -> argparse.Namespace:
 
     Returns:
         argparse.Namespace: Configuration file with required parameters to train
-                            <model> with <dataset> in PyTorch:
+                            `model` with `dataset` in PyTorch:
             config_file (str): Configuration yaml file path. Default
                                "config.example.yml"
     """
 
-    parser = argparse.ArgumentParser("Train <model> with <dataset> in PyTorch.")
+    parser = argparse.ArgumentParser("Train `model` with `dataset` in PyTorch.")
     parser.add_argument(
         "--config_file",
         type=str,
@@ -57,7 +57,7 @@ def get_args() -> argparse.Namespace:
 
 
 def main(config_file: str) -> None:
-    """Train <model> with <dataset> in PyTorch.
+    """Train `model` with `dataset` in PyTorch.
 
     Args:
         config_file (str): Configuration yaml file path. Default
@@ -197,8 +197,8 @@ def resume_training(
     """Resume training from checkpoint.
 
     Args:
-        config (Dict): Configuration with required parameters to train <model>
-                       with <dataset>
+        config (Dict): Configuration with required parameters to train `model`
+                       with `dataset`
         model (nn.Module): Model to train
         optimizer (optim.Optimizer): Optimizer. Ex. SGD
 
@@ -461,5 +461,5 @@ if __name__ == "__main__":
     # Get configuration yaml file path
     args = get_args()
 
-    # train <model> with <dataset> in PyTorch
+    # train `model` with `dataset`` in PyTorch
     main(**args.__dict__)

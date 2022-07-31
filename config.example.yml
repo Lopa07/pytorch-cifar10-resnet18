@@ -1,4 +1,4 @@
-### Required variables to train <model_name> with <dataset_name> in PyTorch.
+### Required variables to train `model` with `dataset` in PyTorch.
 
 # Model parameters
 model:
