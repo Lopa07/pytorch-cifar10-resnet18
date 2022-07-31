@@ -87,7 +87,7 @@ def main(config_file: str) -> None:
     model = getattr(__import__("modelzoo"), model_name)()
     model = model.to(device)
     if device == "cuda":
-        model = torch.nn.DataParallel(model)
+        model = nn.DataParallel(model)
         cudnn.benchmark = True
     logger.info(f"{model_name} model loaded.")
 
@@ -313,7 +313,7 @@ def train(
 
         scheduler.step()
 
-    logger.log(f"Training time: {time.time() - train_start:.2f}s")
+    logger.info(f"Training time: {time.time() - train_start:.2f}s")
     return epochs, train_loss, train_acc, val_loss, val_acc
 
 
