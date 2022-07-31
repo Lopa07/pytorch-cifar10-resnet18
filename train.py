@@ -1,6 +1,8 @@
 """Train <model> with <dataset> in PyTorch.
 <model>:
+    - DLA
     - ResNet18
+    - VGG16
 
 <dataset>:
     - CIFAR10
@@ -167,7 +169,7 @@ def initialize_logger(
     return logger, log_dir
 
 
-def set_seed(seed: int = None):
+def set_seed(seed: int = None) -> None:
     """Initiate training with manual random seed for reproducibility.
 
     Args:

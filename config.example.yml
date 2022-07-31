@@ -2,7 +2,7 @@
 
 # Model parameters
 model:
-    # Model name to train. choices are "ResNet18"
+    # Model name to train. choices are "ResNet18", "VGG16", "DLA"
     name: "ResNet18"
 
 # Data parameters
