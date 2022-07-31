@@ -14,6 +14,7 @@ import datetime
 import logging
 import os
 import shutil
+import time
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -292,6 +293,7 @@ def train(
     val_loss = []
     val_acc = []
 
+    train_start = time.time()
     for epoch in range(start_epoch, start_epoch + num_epochs):
         epochs.append(epoch)
 
@@ -311,6 +313,7 @@ def train(
 
         scheduler.step()
 
+    logger.log(f"Training time: {time.time() - train_start}")
     return epochs, train_loss, train_acc, val_loss, val_acc
 
 
@@ -346,6 +349,7 @@ def train_epoch(
     total = 0
 
     # Train
+    epoch_start = time.time()
     for _, (inputs, targets) in enumerate(train_loader):
         inputs = inputs.to(device)
         targets = targets.to(device)
@@ -369,7 +373,10 @@ def train_epoch(
     train_loss /= len(train_loader)
     train_acc = 100 * correct / total
 
-    logger.info(f"Loss: {train_loss} | Acc: {train_acc}%, ({correct}/{total})")
+    logger.info(
+        f"Loss: {train_loss} | Acc: {train_acc}%, ({correct}/{total}) | "
+        f"Time: {time.time() - epoch_start}"
+    )
     return train_loss, train_acc
 
 
@@ -408,6 +415,7 @@ def val_epoch(
     total = 0
 
     # Validation
+    epoch_start = time.time()
     with torch.no_grad():
         for _, (inputs, targets) in enumerate(val_loader):
             inputs = inputs.to(device)
@@ -427,7 +435,10 @@ def val_epoch(
     val_loss /= len(val_loader)
     val_acc = 100 * correct / total
 
-    logger.info(f"Loss: {val_loss} | Acc: {val_acc}%, ({correct}/{total})")
+    logger.info(
+        f"Loss: {val_loss} | Acc: {val_acc}%, ({correct}/{total}) | "
+        f"Time: {time.time() - epoch_start}"
+    )
 
     # Save checkpoint
     if val_acc >= best_acc:
