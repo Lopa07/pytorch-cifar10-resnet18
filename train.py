@@ -1,8 +1,8 @@
 """Train <model> with <dataset> in PyTorch.
 <model>:
-    - DLA
-    - ResNet18
     - VGG16
+    - ResNet18
+    - DLA
 
 <dataset>:
     - CIFAR10
