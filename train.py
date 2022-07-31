@@ -313,7 +313,7 @@ def train(
 
         scheduler.step()
 
-    logger.log(f"Training time: {time.time() - train_start}")
+    logger.log(f"Training time: {time.time() - train_start:.2f}s")
     return epochs, train_loss, train_acc, val_loss, val_acc
 
 
@@ -375,7 +375,7 @@ def train_epoch(
 
     logger.info(
         f"Loss: {train_loss} | Acc: {train_acc}%, ({correct}/{total}) | "
-        f"Time: {time.time() - epoch_start}"
+        f"Time: {time.time() - epoch_start:.2f}s"
     )
     return train_loss, train_acc
 
@@ -437,7 +437,7 @@ def val_epoch(
 
     logger.info(
         f"Loss: {val_loss} | Acc: {val_acc}%, ({correct}/{total}) | "
-        f"Time: {time.time() - epoch_start}"
+        f"Time: {time.time() - epoch_start:.2f}s"
     )
 
     # Save checkpoint
