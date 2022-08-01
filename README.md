@@ -7,6 +7,7 @@ Train `model` with `dataset` in PyTorch:
     - DLA
 - `dataset`:
     - CIFAR10
+    - CIFAR100
 
 ## Getting Started
 Clone this repo, then install all dependencies:

@@ -6,6 +6,7 @@
 
 `dataset`:
     - CIFAR10
+    - CIFAR100
 """
 
 
@@ -67,9 +68,9 @@ def main(config_file: str) -> None:
     # Load configuration
     config = yaml.safe_load(Path(config_file).read_text())
 
-    # Model and dataset names
-    model_name = config["model"]["name"]
+    # Dataset and model names
     dataset_name = config["dataset"]["name"]
+    model_name = config["model"]["name"]
 
     # Logger
     global logger
@@ -83,20 +84,23 @@ def main(config_file: str) -> None:
     # Set random seed
     set_seed(config["seed"])
 
-    # Model
-    model = getattr(__import__("modelzoo"), model_name)()
-    model = model.to(device)
-    if device == "cuda":
-        model = nn.DataParallel(model)
-        cudnn.benchmark = True
-    logger.info(f"{model_name} model loaded.")
-
     # Dataset
     train_loader, val_loader = getattr(__import__("datazoo"), dataset_name)(
         config["training"]["batch_size"]["train"],
         config["training"]["batch_size"]["val"],
     )
     logger.info(f"{dataset_name} training and validation datasets are loaded.")
+
+    # # of classes
+    num_classes = len(train_loader.dataset.classes)
+
+    # Model
+    model = getattr(__import__("modelzoo"), model_name)(num_classes=num_classes)
+    model = model.to(device)
+    if device == "cuda":
+        model = nn.DataParallel(model)
+        cudnn.benchmark = True
+    logger.info(f"{model_name} model loaded.")
 
     # Loss, optimizer, and scheduler
     criterion = nn.CrossEntropyLoss()
