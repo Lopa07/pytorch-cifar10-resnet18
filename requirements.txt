@@ -1,4 +1,6 @@
 matplotlib
+numpy
 PyYAML
+scipy
 torch
 torchvision

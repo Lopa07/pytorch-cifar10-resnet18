@@ -7,7 +7,7 @@ model:
 
 # Data parameters
 dataset:
-    # Dataset name to classify. choices are "CIFAR10", "CIFAR100"
+    # Dataset name to classify. choices are "CIFAR10", "CIFAR100", "SVHN"
     name: "CIFAR10"
 
 # Random seed for reproducibility

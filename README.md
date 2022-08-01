@@ -8,6 +8,7 @@ Train `model` with `dataset` in PyTorch:
 - `dataset`:
     - CIFAR10
     - CIFAR100
+    - SVHN
 
 ## Getting Started
 Clone this repo, then install all dependencies:

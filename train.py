@@ -7,6 +7,7 @@
 `dataset`:
     - CIFAR10
     - CIFAR100
+    - SVHN
 """
 
 
@@ -28,6 +29,7 @@ from torch.nn.modules.loss import _Loss
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data.dataloader import DataLoader
 
+from datasets import DATASET
 from utils import (
     compare_configs,
     get_optimizer,
@@ -85,14 +87,17 @@ def main(config_file: str) -> None:
     set_seed(config["seed"])
 
     # Dataset
-    train_loader, val_loader = getattr(__import__("datazoo"), dataset_name)(
+    dataset = DATASET(
+        dataset_name,
         config["training"]["batch_size"]["train"],
         config["training"]["batch_size"]["val"],
     )
+    train_loader, val_loader = dataset.load()
     logger.info(f"{dataset_name} training and validation datasets are loaded.")
 
     # # of classes
-    num_classes = len(train_loader.dataset.classes)
+    num_classes = dataset.num_classes
+    logger.info(f"# of classes in {dataset_name} is {num_classes}.")
 
     # Model
     model = getattr(__import__("modelzoo"), model_name)(num_classes=num_classes)
