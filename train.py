@@ -161,7 +161,9 @@ def initialize_logger(
     """
 
     # Log directory
-    log_dir = datetime.datetime.now().strftime("log-%d_%m_%Y-%H:%M:%S")
+    log_dir = datetime.datetime.now().strftime(
+        f"log-{dataset}-{model}-%d_%m_%Y-%H:%M:%S"
+    )
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
