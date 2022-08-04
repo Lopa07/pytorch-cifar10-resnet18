@@ -2,6 +2,8 @@
     - CIFAR10
     - CIFAR100
     - SVHN
+    - MNIST
+    - FashionMNIST
 """
 
 
@@ -11,7 +13,7 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data.dataloader import DataLoader
-from torchvision.datasets import CIFAR10, CIFAR100, SVHN
+from torchvision.datasets import CIFAR10, CIFAR100, MNIST, SVHN, FashionMNIST
 
 
 class DATASET:
@@ -33,38 +35,46 @@ class DATASET:
 
     def transform(self):
         """Training and validation dataset transformation."""
+
+        # Normalize
         if self.dataset == "CIFAR10":
             normalize = transforms.Normalize(
-                mean=(0.4914, 0.4822, 0.4465),
-                std=(0.2023, 0.1994, 0.2010),
+                mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010)
             )
-
         elif self.dataset == "CIFAR100":
             normalize = transforms.Normalize(
-                mean=(0.507, 0.487, 0.441),
-                std=(0.267, 0.256, 0.276),
+                mean=(0.507, 0.487, 0.441), std=(0.267, 0.256, 0.276)
             )
-
         elif self.dataset == "SVHN":
             normalize = transforms.Normalize(
                 mean=(0.4376821, 0.4437697, 0.47280442),
                 std=(0.19803012, 0.20101562, 0.19703614),
             )
+        elif self.dataset == "MNIST":
+            normalize = transforms.Normalize(mean=(0.1307,), std=(0.3081,))
+        elif self.dataset == "FashionMNIST":
+            normalize = transforms.Normalize(mean=(0.2862,), std=(0.3299,))
 
-        self.transform_train = transforms.Compose(
-            [
+        # Basic transform
+        basic_transform = [transforms.ToTensor(), normalize]
+
+        # Transform for training data
+        if "MNIST" in self.dataset:
+            transform_train = [transforms.Resize(32)]
+        else:
+            transform_train = [
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                normalize,
             ]
-        )
-        self.transform_val = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                normalize,
-            ]
-        )
+        self.transform_train = transforms.Compose(transform_train + basic_transform)
+
+        # Transform for validation data
+        if "MNIST" in self.dataset:
+            self.transform_val = transforms.Compose(
+                [transforms.Resize(32)] + basic_transform
+            )
+        else:
+            self.transform_val = transforms.Compose(basic_transform)
 
     def data_loaders(self):
         """Training and validation datasets."""
@@ -95,11 +105,9 @@ class DATASET:
         Args:
             split (str): Data split: "train" or "test"
         """
-        if self.dataset in {"CIFAR10", "CIFAR100"}:
-            return {"train": split == "train"}
-
-        if self.dataset == "SVHN":
-            return {"split": split}
+        return (
+            {"split": split} if self.dataset == "SVHN" else {"train": split == "train"}
+        )
 
     def load(self) -> Tuple[DataLoader, DataLoader]:
         """Load training and validation datasets.
@@ -109,6 +117,16 @@ class DATASET:
             DataLoader: Validation dataloader
         """
         return self.train_loader, self.val_loader
+
+    @property
+    def in_channels(self) -> int:
+        """Number of data / input channels.
+
+        Returns:
+            int: Number of data / input channels
+        """
+        data_dimensions = self.train_loader.dataset.data.squeeze().shape
+        return 1 if len(data_dimensions) == 3 else min(data_dimensions)
 
     @property
     def num_classes(self) -> int:

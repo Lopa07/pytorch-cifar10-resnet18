@@ -8,6 +8,8 @@
     - CIFAR10
     - CIFAR100
     - SVHN
+    - MNIST
+    - FashionMNIST
 """
 
 
@@ -95,12 +97,18 @@ def main(config_file: str) -> None:
     train_loader, val_loader = dataset.load()
     logger.info(f"{dataset_name} training and validation datasets are loaded.")
 
+    # # of data / input channels
+    in_channels = dataset.in_channels
+    logger.info(f"# of input channels: {in_channels}")
+
     # # of classes
     num_classes = dataset.num_classes
-    logger.info(f"# of classes in {dataset_name} is {num_classes}.")
+    logger.info(f"# of classes: {num_classes}")
 
     # Model
-    model = getattr(__import__("modelzoo"), model_name)(num_classes=num_classes)
+    model = getattr(__import__("modelzoo"), model_name)(
+        in_channels=in_channels, num_classes=num_classes
+    )
     model = model.to(device)
     if device == "cuda":
         model = nn.DataParallel(model)
@@ -162,7 +170,7 @@ def initialize_logger(
 
     # Log directory
     log_dir = datetime.datetime.now().strftime(
-        f"log-{dataset}-{model}-%d_%m_%Y-%H:%M:%S"
+        f"log-{dataset}-{model}-%m_%d_%Y-%H:%M:%S"
     )
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)

@@ -100,10 +100,10 @@ class Tree(nn.Module):
 
 
 class DLA(nn.Module):
-    def __init__(self, block=BasicBlock, num_classes=10):
+    def __init__(self, block=BasicBlock, in_channels=3, num_classes=10):
         super(DLA, self).__init__()
         self.base = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(in_channels, 16, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(16),
             nn.ReLU(True),
         )

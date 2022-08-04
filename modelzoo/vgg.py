@@ -85,8 +85,10 @@ cfg = {
 
 
 class VGG(nn.Module):
-    def __init__(self, vgg_name, num_classes=10):
+    def __init__(self, vgg_name, in_channels=3, num_classes=10):
         super(VGG, self).__init__()
+
+        self.in_channels = in_channels
         self.features = self._make_layers(cfg[vgg_name])
         self.classifier = nn.Linear(512, num_classes)
 
@@ -98,7 +100,7 @@ class VGG(nn.Module):
 
     def _make_layers(self, cfg):
         layers = []
-        in_channels = 3
+        in_channels = self.in_channels
         for x in cfg:
             if x == "M":
                 layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
@@ -113,24 +115,24 @@ class VGG(nn.Module):
         return nn.Sequential(*layers)
 
 
-def VGG11(num_classes):
-    return VGG("VGG11", num_classes)
+def VGG11(in_channels=3, num_classes=10):
+    return VGG("VGG11", in_channels, num_classes)
 
 
-def VGG13(num_classes):
-    return VGG("VGG13", num_classes)
+def VGG13(in_channels=3, num_classes=10):
+    return VGG("VGG13", in_channels, num_classes)
 
 
-def VGG16(num_classes):
-    return VGG("VGG16", num_classes)
+def VGG16(in_channels=3, num_classes=10):
+    return VGG("VGG16", in_channels, num_classes)
 
 
-def VGG19(num_classes):
-    return VGG("VGG19", num_classes)
+def VGG19(in_channels=3, num_classes=10):
+    return VGG("VGG19", in_channels, num_classes)
 
 
 def test():
-    net = VGG16(10)
+    net = VGG16()
     x = torch.randn(2, 3, 32, 32)
     y = net(x)
     print(y.size())
