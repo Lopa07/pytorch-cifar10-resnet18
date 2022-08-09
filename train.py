@@ -125,7 +125,9 @@ def main(config_file: str) -> None:
     )
 
     # Resume training
-    model, optimizer, best_acc, start_epoch = resume_training(config, model, optimizer)
+    model, optimizer, scheduler, best_acc, start_epoch = resume_training(
+        config, model, optimizer, scheduler
+    )
     logger.info(f"Starting epoch: {start_epoch}")
     logger.info(f"Initial best accuracy: {best_acc}")
 
@@ -214,7 +216,8 @@ def resume_training(
     config: Dict,
     model: nn.Module,
     optimizer: optim.Optimizer,
-) -> Tuple[nn.Module, optim.Optimizer, float, int]:
+    scheduler: _LRScheduler,
+) -> Tuple[nn.Module, optim.Optimizer, _LRScheduler, float, int]:
     """Resume training from checkpoint.
 
     Args:
@@ -222,10 +225,12 @@ def resume_training(
                        with `dataset`
         model (nn.Module): Model to train
         optimizer (optim.Optimizer): Optimizer. Ex. SGD
+        scheduler (_LRScheduler): Learning rate scheduler for optimizer
 
     Returns:
         nn.Module: Checkpoint model
         optim.Optimizer: Checkpoint optimizer
+        _LRScheduler: Checkpoint scheduler
         float: Initial best accuray
         int: Starting epoch
     """
@@ -237,7 +242,7 @@ def resume_training(
     # Resume from checkpoint
     resume = config["training"]["resume"]["from_checkpoint"]
     if not resume:
-        return model, optimizer, best_acc, start_epoch
+        return model, optimizer, scheduler, best_acc, start_epoch
 
     # Checkpoint directory
     checkpoint_dir = config["training"]["resume"]["checkpoint_dir"]
@@ -260,6 +265,7 @@ def resume_training(
 
         model.load_state_dict(checkpoint["model"])
         optimizer.load_state_dict(checkpoint["optimizer"])
+        scheduler.load_state_dict(checkpoint["scheduler"])
         start_epoch = checkpoint["epoch"] + 1
         best_acc = checkpoint["acc"]
 
@@ -272,7 +278,7 @@ def resume_training(
         logger.error(f"Checkpoint path '{checkpoint_path}' is not present!")
         exit()
 
-    return model, optimizer, best_acc, start_epoch
+    return model, optimizer, scheduler, best_acc, start_epoch
 
 
 def train(
@@ -327,7 +333,7 @@ def train(
 
         # Validation
         loss, acc, best_acc = val_epoch(
-            epoch, model, val_loader, device, optimizer, criterion, best_acc
+            epoch, model, val_loader, device, optimizer, criterion, best_acc, scheduler
         )
         val_loss.append(loss)
         val_acc.append(acc)
@@ -409,6 +415,7 @@ def val_epoch(
     optimizer: optim.Optimizer,
     criterion: _Loss,
     best_acc: float,
+    scheduler: _LRScheduler,
 ) -> Tuple[float, float, float]:
     """Validate this epoch.
 
@@ -420,6 +427,7 @@ def val_epoch(
         optimizer (optim.Optimizer): Optimizer. Ex. SGD
         criterion (_Loss): Loss function to optimize. Ex. CrossEntropyLoss
         best_acc (float): Best accuracy before this epoch
+        scheduler (_LRScheduler): Learning rate scheduler for optimizer
 
     Returns:
         float: Validation loss this epoch
@@ -469,6 +477,7 @@ def val_epoch(
         state = {
             "model": model.state_dict(),
             "optimizer": optimizer.state_dict(),
+            "scheduler": scheduler.state_dict(),
             "epoch": epoch,
             "acc": val_acc,
         }
