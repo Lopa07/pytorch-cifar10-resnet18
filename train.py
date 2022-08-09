@@ -39,6 +39,8 @@ from utils import (
     plot_loss_accuracy_over_epochs,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def get_args() -> argparse.Namespace:
     """This function parses the command-line arguments and returns necessary
@@ -179,7 +181,7 @@ def initialize_logger(
     shutil.copy2(config_file, os.path.join(log_dir, "config.yml"))
 
     # Logger
-    logger = logging.getLogger(f"Train {model} with {dataset}")
+    logger = logging.getLogger("parent")
     logger.setLevel(logging.DEBUG)
     logger.handlers = [
         logging.StreamHandler(),
