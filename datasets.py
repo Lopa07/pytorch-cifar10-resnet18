@@ -84,7 +84,9 @@ class DATASET:
             split (str): Data split: "train" or "test"
         """
         return (
-            {"split": split} if self.dataset_name == "SVHN" else {"train": split == "train"}
+            {"split": split}
+            if self.dataset_name == "SVHN"
+            else {"train": split == "train"}
         )
 
     def get_datasets(self):
@@ -105,10 +107,16 @@ class DATASET:
     def data_loaders(self):
         """Training and validation data loaders."""
         self.train_loader = torch.utils.data.DataLoader(
-            self.train_dataset, batch_size=self.batch_size_train, shuffle=True, num_workers=2
+            self.train_dataset,
+            batch_size=self.batch_size_train,
+            shuffle=True,
+            num_workers=2,
         )
         self.val_loader = torch.utils.data.DataLoader(
-            self.val_dataset, batch_size=self.batch_size_val, shuffle=False, num_workers=2
+            self.val_dataset,
+            batch_size=self.batch_size_val,
+            shuffle=False,
+            num_workers=2,
         )
 
     def load(self) -> Tuple[DataLoader, DataLoader]:
