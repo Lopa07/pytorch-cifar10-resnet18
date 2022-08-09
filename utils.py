@@ -115,13 +115,13 @@ def compare_configs(config: Dict, config_checkpoint: Dict) -> bool:
         bool: Check if basic configurations are same with the checkpoint and can
               resume training
     """
-
     return (
-        config["model"] != config_checkpoint["model"]
-        or config["dataset"] != config_checkpoint["dataset"]
-        or config["training"]["optimizer"]["name"]
-        != config_checkpoint["training"]["optimizer"]["name"]
-        or config["training"]["scheduler"] != config_checkpoint["training"]["scheduler"]
+        config["model"] == config_checkpoint["model"]
+        and config["dataset"] == config_checkpoint["dataset"]
+        and config["training"]["optimizer"]["name"]
+        == config_checkpoint["training"]["optimizer"]["name"]
+        and config["training"]["scheduler"]
+        == config_checkpoint["training"]["scheduler"]
     )
 
 
