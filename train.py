@@ -30,6 +30,7 @@ import yaml
 from torch.nn.modules.loss import _Loss
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data.dataloader import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from datasets import DATASET
 from utils import (
@@ -79,9 +80,12 @@ def main(config_file: str) -> None:
     model_name = config["model"]["name"]
 
     # Logger
-    global logger
     global log_dir
-    logger, log_dir = initialize_logger(config_file, model_name, dataset_name)
+    log_dir = setup_log_dir_and_logger(config_file, model_name, dataset_name)
+
+    # Tensorboard summary writer
+    global tb
+    tb = SummaryWriter(log_dir=log_dir)
 
     # Device
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -117,6 +121,10 @@ def main(config_file: str) -> None:
         cudnn.benchmark = True
     logger.info(f"{model_name} model loaded.")
 
+    # Add model graph to tensorboard
+    images, _ = next(iter(val_loader))
+    tb.add_graph(model, images)
+
     # Loss, optimizer, and scheduler
     criterion = nn.CrossEntropyLoss()
     optimizer = get_optimizer(config["training"]["optimizer"], model.parameters())
@@ -128,7 +136,7 @@ def main(config_file: str) -> None:
     model, optimizer, scheduler, best_acc, start_epoch = resume_training(
         config, model, optimizer, scheduler
     )
-    logger.info(f"Starting epoch: {start_epoch}")
+    logger.info(f"Starting model training from epoch: {start_epoch}")
     logger.info(f"Initial best accuracy: {best_acc}")
 
     # Train
@@ -144,6 +152,7 @@ def main(config_file: str) -> None:
         best_acc,
         scheduler,
     )
+    tb.close()
 
     # Plot loss and accuracy over epochs
     fpath = os.path.join(log_dir, f"train_{model_name}_{dataset_name}")
@@ -157,10 +166,8 @@ def main(config_file: str) -> None:
     )
 
 
-def initialize_logger(
-    config_file: str, model: str, dataset: str
-) -> Tuple[logging.Logger, str]:
-    """Initialize logger.
+def setup_log_dir_and_logger(config_file: str, model: str, dataset: str) -> str:
+    """Initialize log directory.
 
     Args:
         config_file (str): Configuration yaml file path
@@ -168,7 +175,6 @@ def initialize_logger(
         dataset (str): Dataset name to classify
 
     Returns:
-        logging.Logger: Logger
         str: Log directory
     """
 
@@ -183,14 +189,20 @@ def initialize_logger(
     shutil.copy2(config_file, os.path.join(log_dir, "config.yml"))
 
     # Logger
-    logger = logging.getLogger("parent")
     logger.setLevel(logging.DEBUG)
-    logger.handlers = [
-        logging.StreamHandler(),
-        logging.FileHandler(os.path.join(log_dir, "log.txt")),
-    ]
 
-    return logger, log_dir
+    stream_handler = logging.StreamHandler()
+    file_handler = logging.FileHandler(os.path.join(log_dir, "log.txt"))
+    logger.addHandler(stream_handler)
+    logger.addHandler(file_handler)
+
+    formatter = logging.Formatter(
+        "%(lineno)3s : %(asctime)s : %(name)s : %(levelname)7s : %(message)s"
+    )
+    stream_handler.setFormatter(formatter)
+    file_handler.setFormatter(formatter)
+
+    return log_dir
 
 
 def set_seed(seed: int = None) -> None:
@@ -400,10 +412,20 @@ def train_epoch(
     train_loss /= len(train_loader)
     train_acc = 100 * correct / total
 
+    # Update log
     logger.info(
         f"Loss: {train_loss} | Acc: {train_acc}%, ({correct}/{total}) | "
         f"Time: {time.time() - epoch_start:.2f}s"
     )
+
+    # Add trainig loss, accurary, and weight gradients in tensorboard
+    tb.add_scalar("Training loss", train_loss, epoch)
+    tb.add_scalar("Training accuracy", train_acc, epoch)
+
+    for name, weight in model.named_parameters():
+        tb.add_histogram(name, weight, epoch)
+        tb.add_histogram(f"{name}.grad", weight.grad, epoch)
+
     return train_loss, train_acc
 
 
@@ -464,10 +486,15 @@ def val_epoch(
     val_loss /= len(val_loader)
     val_acc = 100 * correct / total
 
+    # Update log
     logger.info(
         f"Loss: {val_loss} | Acc: {val_acc}%, ({correct}/{total}) | "
         f"Time: {time.time() - epoch_start:.2f}s"
     )
+
+    # Add validation loss and accurary in tensorboard
+    tb.add_scalar("Validation loss", val_loss, epoch)
+    tb.add_scalar("Validation accuracy", val_acc, epoch)
 
     # Save checkpoint
     if val_acc >= best_acc:
@@ -479,6 +506,7 @@ def val_epoch(
             "optimizer": optimizer.state_dict(),
             "scheduler": scheduler.state_dict(),
             "epoch": epoch,
+            "loss": val_loss,
             "acc": val_acc,
         }
         torch.save(state, os.path.join(log_dir, "ckpt.pth"))

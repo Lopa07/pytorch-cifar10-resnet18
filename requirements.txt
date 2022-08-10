@@ -1,6 +1,7 @@
 matplotlib
 numpy
-PyYAML
 scipy
+PyYAML
 torch
 torchvision
+tensorboard
