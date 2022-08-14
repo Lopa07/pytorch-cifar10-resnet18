@@ -519,5 +519,5 @@ if __name__ == "__main__":
     # Get configuration yaml file path
     args = get_args()
 
-    # train `model` with `dataset`` in PyTorch
+    # Train `model` with `dataset` in PyTorch
     main(**args.__dict__)
