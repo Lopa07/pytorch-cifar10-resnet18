@@ -103,17 +103,17 @@ def main(config_file: str) -> None:
     train_loader, val_loader = dataset.load()
     logger.info(f"{dataset_name} training and validation datasets are loaded.")
 
-    # # of data / input channels
-    in_channels = dataset.in_channels
-    logger.info(f"# of input channels: {in_channels}")
-
     # # of classes
     num_classes = dataset.num_classes
     logger.info(f"# of classes: {num_classes}")
 
+    # # of data / input channels
+    in_channels = dataset.in_channels
+    logger.info(f"# of input channels: {in_channels}")
+
     # Model
     model = getattr(__import__("modelzoo"), model_name)(
-        in_channels=in_channels, num_classes=num_classes
+        num_classes=num_classes, in_channels=in_channels
     )
     model = model.to(device)
     if device == "cuda":

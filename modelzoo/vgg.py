@@ -85,7 +85,7 @@ cfg = {
 
 
 class VGG(nn.Module):
-    def __init__(self, vgg_name, in_channels=3, num_classes=10):
+    def __init__(self, vgg_name, num_classes=10, in_channels=3):
         super(VGG, self).__init__()
 
         self.in_channels = in_channels
@@ -115,20 +115,20 @@ class VGG(nn.Module):
         return nn.Sequential(*layers)
 
 
-def VGG11(in_channels=3, num_classes=10):
-    return VGG("VGG11", in_channels, num_classes)
+def VGG11(num_classes=10, in_channels=3):
+    return VGG("VGG11", num_classes, in_channels)
 
 
-def VGG13(in_channels=3, num_classes=10):
-    return VGG("VGG13", in_channels, num_classes)
+def VGG13(num_classes=10, in_channels=3):
+    return VGG("VGG13", num_classes, in_channels)
 
 
-def VGG16(in_channels=3, num_classes=10):
-    return VGG("VGG16", in_channels, num_classes)
+def VGG16(num_classes=10, in_channels=3):
+    return VGG("VGG16", num_classes, in_channels)
 
 
-def VGG19(in_channels=3, num_classes=10):
-    return VGG("VGG19", in_channels, num_classes)
+def VGG19(num_classes=10, in_channels=3):
+    return VGG("VGG19", num_classes, in_channels)
 
 
 def test():
