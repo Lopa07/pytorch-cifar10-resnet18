@@ -3,7 +3,7 @@
     - VGG16
     - ResNet18
     - DLA
-
+    - WRN-28-10
 `dataset`:
     - CIFAR10
     - CIFAR100
